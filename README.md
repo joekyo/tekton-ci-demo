@@ -29,14 +29,7 @@ az aks create \
   --node-vm-size Standard_B2s \
   --generate-ssh-keys \
   --enable-managed-identity \
-  --network-plugin azure \
-  --no-wait
-
-# Wait until cluster is ready
-az aks wait \
-  --resource-group rg-tekton-learn \
-  --name aks-tekton-learn \
-  --created
+  --network-plugin azure
 
 # Get kubeconfig
 az aks get-credentials \
@@ -144,39 +137,10 @@ The HTTP endpoint that GitHub calls. Key settings:
   the secret in `02-secret.yaml`, and filters to `push` events only
 - References TriggerBinding and TriggerTemplate defined above
 
----
-
-## 5. Open Port 8080 in Azure NSG
-
-AKS creates a LoadBalancer automatically, but the Network Security Group blocks
-inbound traffic by default. Add a rule to allow port 8080:
-
-```bash
-# Find NSG name in the MC_* resource group
-az network nsg list \
-  --resource-group MC_rg-tekton-learn_aks-tekton-learn_japanwest \
-  --query "[].name" --output tsv
-
-# Allow inbound 8080
-az network nsg rule create \
-  --resource-group MC_rg-tekton-learn_aks-tekton-learn_japanwest \
-  --nsg-name <NSG-NAME> \
-  --name allow-tekton-webhook \
-  --priority 1010 \
-  --protocol Tcp \
-  --direction Inbound \
-  --source-address-prefixes '*' \
-  --destination-port-ranges 8080 \
-  --access Allow
-
-# Get the public IP assigned to the EventListener
-kubectl get svc -n ci -l eventlistener=github-webhook
-# Note the EXTERNAL-IP value
-```
 
 ---
 
-## 6. Configure GitHub Webhook
+## 5. Configure GitHub Webhook
 
 In your GitHub repository, go to **Settings → Webhooks → Add webhook**:
 
@@ -193,7 +157,7 @@ HTTP 200. You can verify in the webhook's **Recent Deliveries** tab.
 
 ---
 
-## 7. Verify the Pipeline
+## 6. Verify the Pipeline
 
 Push any commit to your repository, then:
 
@@ -219,7 +183,7 @@ kubectl delete pipelinerun --all -n ci
 
 ---
 
-## 8. Clean Up All Resources
+## 7. Clean Up All Resources
 
 When you are done, delete the resource group. This removes the AKS cluster,
 all nodes, the Load Balancer, Public IP, VNet, and the `MC_*` resource group automatically.
@@ -240,19 +204,5 @@ Also remove the kubeconfig entry for the deleted cluster:
 kubectl config delete-context aks-tekton-learn
 kubectl config delete-cluster aks-tekton-learn
 ```
-
----
-
-## Appendix: Cost Estimate
-
-Region: Japan West. Prices are approximate and billed per hour.
-
-| Resource | Cost |
-|----------|------|
-| AKS management fee | Free |
-| 2x Standard_B2s nodes | ~¥14 / hour |
-| Load Balancer | ~¥2 / hour |
-| Public IP | ~¥0.5 / hour |
-| **Total** | **~¥17 / hour (~¥410 / day)** |
 
 > Delete the resource group immediately after finishing to avoid unnecessary charges.

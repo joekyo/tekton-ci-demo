@@ -1,0 +1,62 @@
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: read-file-pipeline
+  namespace: ci
+spec:
+  params:
+    - name: repo-url
+      type: string
+    - name: revision
+      type: string
+    - name: repo-name
+      type: string
+  workspaces:
+    - name: source
+  tasks:
+    - name: clone
+      taskRef:
+        resolver: hub                    # ← 改用 Tekton Hub resolver
+        params:
+          - name: kind
+            value: task
+          - name: name
+            value: git-clone
+          - name: version
+            value: "0.9"
+      params:
+        - name: url
+          value: $(params.repo-url)
+        - name: revision
+          value: $(params.revision)
+      workspaces:
+        - name: output
+          workspace: source
+
+    - name: read-file
+      runAfter: [clone]
+      workspaces:
+        - name: source
+          workspace: source
+      params:
+        - name: repo-name
+          value: $(params.repo-name)
+        - name: revision
+          value: $(params.revision)
+      taskSpec:
+        params:
+          - name: repo-name
+          - name: revision
+        workspaces:
+          - name: source
+        steps:
+          - name: cat
+            image: alpine:3.20
+            script: |
+              #!/bin/sh
+              echo ">>> repo:     $(params.repo-name)"
+              echo ">>> revision: $(params.revision)"
+              echo ">>> files:"
+              ls $(workspaces.source.path)
+              echo ">>> README.md:"
+              cat $(workspaces.source.path)/README.md

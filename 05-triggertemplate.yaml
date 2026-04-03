@@ -1,0 +1,37 @@
+apiVersion: triggers.tekton.dev/v1beta1
+kind: TriggerTemplate
+metadata:
+  name: github-pipeline-template
+  namespace: ci
+spec:
+  params:
+    - name: repo-url
+    - name: revision
+    - name: repo-name
+  resourcetemplates:
+    - apiVersion: tekton.dev/v1beta1
+      kind: PipelineRun
+      metadata:
+        generateName: read-file-run-
+        namespace: ci
+      spec:
+        pipelineRef:
+          name: read-file-pipeline
+        params:
+          - name: repo-url
+            value: $(tt.params.repo-url)
+          - name: revision
+            value: $(tt.params.revision)
+          - name: repo-name
+            value: $(tt.params.repo-name)
+        podTemplate:
+          securityContext:
+            fsGroup: 65532        # ← 让挂载的 PVC 目录对容器可写
+        workspaces:
+          - name: source
+            volumeClaimTemplate:
+              spec:
+                accessModes: [ReadWriteOnce]
+                resources:
+                  requests:
+                    storage: 500Mi
